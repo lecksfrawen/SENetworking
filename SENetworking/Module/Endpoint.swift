@@ -18,6 +18,7 @@ public enum HTTPMethodType: String {
 public enum BodyEncoding {
     case jsonSerializationData
     case stringEncodingAscii
+    case data
 }
 
 public class Endpoint<R>: ResponseRequestable {
@@ -126,6 +127,14 @@ extension Requestable {
             return try? JSONSerialization.data(withJSONObject: bodyParamaters)
         case .stringEncodingAscii:
             return bodyParamaters.queryString.data(using: String.Encoding.ascii, allowLossyConversion: true)
+        case .data:
+            guard
+                bodyParamaters.keys.contains("data"),
+                let data: Data = bodyParamaters["data"] as? Data
+            else {
+                return nil
+            }
+            return data
         }
     }
 }
