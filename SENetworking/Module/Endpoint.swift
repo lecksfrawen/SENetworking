@@ -130,7 +130,7 @@ extension Requestable {
         case .data:
             guard
                 bodyParamaters.keys.contains("data"),
-                let data: Data = bodyParamaters["data"] as? Data
+                let data: Data = bodyParamaters.getData()
             else {
                 return nil
             }
@@ -152,6 +152,18 @@ private extension Encodable {
         let data = try JSONEncoder().encode(self)
         let josnData = try JSONSerialization.jsonObject(with: data)
         return josnData as? [String : Any]
+    }
+}
+
+private extension Dictionary where Key == String, Value == Any {
+    func getData() -> Data? {
+        guard
+            self.keys.contains("data"),
+            let stringData = self["data"] as? String,
+            let data: Data = Data(base64Encoded: stringData) else {
+                return nil
+        }
+        return data
     }
 }
 
