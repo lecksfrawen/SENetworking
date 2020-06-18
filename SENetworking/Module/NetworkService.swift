@@ -120,9 +120,24 @@ public class DefaultNetworkSessionManager: NetworkSessionManager {
 }
 
 // MARK: - Logger
+extension String {
+    func deletingPrefix(_ prefix: String) -> String {
+        guard self.hasPrefix(prefix) else { return self }
+        return String(self.dropFirst(prefix.count))
+    }
+}
 
 public final class DefaultNetworkErrorLogger: NetworkErrorLogger {
     public init() { }
+    
+    private func printJSONData(text: String, prefix: String) {
+        guard let decodedString = text.removingPercentEncoding else {
+            printIfDebug("body: \(String(describing: text))")
+            return
+        }
+        let jsonString = decodedString.deletingPrefix(prefix)
+        printIfDebug("body: \(String(describing: jsonString))")
+    }
 
     public func log(request: URLRequest) {
         print("-------------")
@@ -130,17 +145,27 @@ public final class DefaultNetworkErrorLogger: NetworkErrorLogger {
         print("headers: \(request.allHTTPHeaderFields!)")
         print("method: \(request.httpMethod!)")
         if let httpBody = request.httpBody {
-            do {
-                let newResult = try JSONSerialization.jsonObject(with: httpBody, options: []) as? [String: AnyObject]
-                let result = newResult as [String: AnyObject]??
-                printIfDebug("body: \(String(describing: result))")
-            } catch {
-                dump("error: \(String(describing: error))")
+            let jsonPrefix = "jsonComponent="
+            let dataPrefix = "data="
+            if let text: String = String(data: httpBody, encoding: .utf8), text.starts(with: jsonPrefix) {
+                printJSONData(text: text, prefix: jsonPrefix)
+            } else if let text: String = String(data: httpBody, encoding: .utf8), text.starts(with: dataPrefix) {
+                printJSONData(text: text, prefix: dataPrefix)
+            } else {
+                do {
+                    let newResult = try JSONSerialization.jsonObject(with: httpBody, options: []) as? [String: AnyObject]
+                    let result = newResult as [String: AnyObject]??
+                    printIfDebug("body: \(String(describing: result))")
+                } catch {
+                    dump("error: \(String(describing: error))")
+                }
             }
-        } else if
-            let httpBody = request.httpBody,
-            let resultString = String(data: httpBody, encoding: .utf8) {
-            printIfDebug("body: \(String(describing: resultString))")
+        } else {
+            if
+                let httpBody = request.httpBody,
+                let resultString = String(data: httpBody, encoding: .utf8) {
+                printIfDebug("body: \(String(describing: resultString))")
+            }
         }
     }
 
